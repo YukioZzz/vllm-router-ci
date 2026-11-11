@@ -20,6 +20,10 @@ if ! flock -n 9; then
   exit 75
 fi
 
+if compgen -G "${lock_path}.claims/*.claim" >/dev/null; then
+  echo quarantined
+  exit 1
+fi
 echo acquired
 
 # The coordinator keeps this SSH stream open for the lifetime of its Buildkite

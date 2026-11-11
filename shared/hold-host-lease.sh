@@ -72,6 +72,12 @@ process_matches || {
   exit 1
 }
 
+# A killed shared supervisor leaves claims until its containers are inspected.
+# Holding the exclusive lock means any remaining GPU claim is quarantined.
+if compgen -G "${lock_path}.claims/*.claim" >/dev/null; then
+  write_status quarantined
+  exit 1
+fi
 write_status acquired
 
 while process_matches; do

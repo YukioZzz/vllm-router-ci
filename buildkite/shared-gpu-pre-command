@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Agent hook for the NEW shared queue only. Do not replace the paired hook.
+set -Eeuo pipefail
+
+readonly lease_root=/usr/local/lib/amd-ci
+[[ ${AMD_CI_GPU_COUNT:-} =~ ^[1-8]$ ]] || {
+  echo 'ERROR: shared GPU job requires AMD_CI_GPU_COUNT in 1..8' >&2
+  exit 2
+}
+owner=$PPID
+while (( owner > 1 )); do
+  command_line=$(tr '\0' ' ' <"/proc/${owner}/cmdline")
+  stat=$(<"/proc/${owner}/stat")
+  read -r -a fields <<< "${stat##*) }"
+  [[ ${command_line} == *buildkite-agent*bootstrap* ]] && break
+  owner=${fields[1]}
+done
+(( owner > 1 )) || { echo 'ERROR: no Buildkite bootstrap owner' >&2; exit 1; }
+ready_dir=$(mktemp -d)
+holder=
+acquired=false
+cleanup_wait() {
+  if [[ ${acquired} != true && -n ${holder} ]]; then
+    kill -TERM "${holder}" 2>/dev/null || true
+    wait "${holder}" 2>/dev/null || true
+  fi
+  rm -f "${ready_dir}/ready.json" "${ready_dir}/ready.tmp"
+  # Keep the supervisor log after the hook returns; it can report quarantine.
+}
+trap cleanup_wait EXIT
+trap 'exit 130' INT TERM HUP
+nohup python3 "${lease_root}/shared/gpu_lease.py" \
+  --count "${AMD_CI_GPU_COUNT}" --owner-pid "${owner}" \
+  --buildkite-job-id "${BUILDKITE_JOB_ID:?}" \
+  --owner-start "${fields[19]}" --ready "${ready_dir}/ready.json" \
+  </dev/null >"${ready_dir}/holder.log" 2>&1 &
+holder=$!
+deadline=$((SECONDS + 21630))
+while [[ ! -s ${ready_dir}/ready.json ]]; do
+  if ! kill -0 "${holder}" 2>/dev/null || (( SECONDS >= deadline )); then
+    echo "ERROR: GPU lease unavailable; details: ${ready_dir}/holder.log" >&2
+    exit 1
+  fi
+  sleep 1
+done
+export AMD_CI_GPU_LEASE
+AMD_CI_GPU_LEASE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"])' "${ready_dir}/ready.json")
+policy=$(python3 "${lease_root}/shared/container_policy.py" buildkite)
+eval "${policy}"
+acquired=true
+# The holder outlives this hook and owns cleanup until bootstrap termination.
+echo "Acquired shared GPU lease ${AMD_CI_GPU_LEASE_ID} (${AMD_CI_GPU_COUNT} GPUs)"

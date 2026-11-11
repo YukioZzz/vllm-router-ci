@@ -1,0 +1,20 @@
+{
+  "host_lock": "/run/lock/amd-ci-gpu.lock",
+  "model_cache": "/models",
+  "cpus_per_gpu": 8,
+  "memory_bytes_per_gpu": 68719476736,
+  "max_lease_seconds": 5400,
+  "drain_seconds": 30,
+  "gpus": [
+    {
+      "device": "/dev/dri/renderD128",
+      "vram_path": "/sys/class/drm/renderD128/device/mem_info_vram_used",
+      "idle_bytes": 536870912
+    },
+    {
+      "device": "/dev/dri/renderD129",
+      "vram_path": "/sys/class/drm/renderD129/device/mem_info_vram_used",
+      "idle_bytes": 536870912
+    }
+  ]
+}

@@ -26,3 +26,6 @@ jobs:
 
       - name: Test shared AMD CI lease
         run: ./tests/test-ci-lease.sh
+
+      - name: Test GPU allocation and container policy
+        run: python3 -m unittest discover -s tests -p 'test_gpu_lease.py' -v

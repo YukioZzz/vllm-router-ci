@@ -38,6 +38,9 @@ accuracy against the required `0.4100` threshold.
 
 ## Repository layout
 
+The [shared GPU admission proposal](shared/README.md) adds an opt-in single-host
+functional lane. It is not deployed by the existing installation scripts.
+
 - `buildkite/`: agent configuration, exact-digest image restoration,
   Docker-plugin validation, shared-host lease, and per-job readiness hook
 - `github-actions/` and `shared/`: symmetric SMG runner hooks and the host-local

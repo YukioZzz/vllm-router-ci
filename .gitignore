@@ -9,3 +9,4 @@ known_hosts
 artifacts/
 builds/
 target/
+__pycache__/

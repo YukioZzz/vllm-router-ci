@@ -76,6 +76,10 @@ while process_matches; do
     sleep "${RETRY_SECONDS}"
     continue
   fi
+  if compgen -G "${LOCK_PATH}.claims/*.claim" >/dev/null; then
+    write_status quarantined
+    exit 1
+  fi
 
   coproc REMOTE_LEASE {
     ssh -T -o BatchMode=yes -o ConnectTimeout=10 \
@@ -110,6 +114,10 @@ while process_matches; do
   fi
 
   cleanup_remote
+  if [[ ${remote_status} == quarantined ]]; then
+    write_status worker-quarantined
+    exit 1
+  fi
   flock -u 9
   sleep "${RETRY_SECONDS}"
 done

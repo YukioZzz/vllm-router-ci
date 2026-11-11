@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Install alongside shared-gpu-pre-command, never in the legacy agent hook dir.
+set -Eeuo pipefail
+[[ -n ${AMD_CI_GPU_LEASE:-} ]] || exit 0
+python3 - <<'PY'
+import os
+from pathlib import Path
+import sys
+sys.path.insert(0, '/usr/local/lib/amd-ci/shared')
+from gpu_lease import load_grant
+path = Path(os.environ['AMD_CI_GPU_LEASE'])
+load_grant(path)
+path.with_suffix('.finished').touch()
+PY
