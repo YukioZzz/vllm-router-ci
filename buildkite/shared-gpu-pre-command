@@ -3,8 +3,8 @@
 set -Eeuo pipefail
 
 readonly lease_root=/usr/local/lib/amd-ci
-[[ ${AMD_CI_GPU_COUNT:-} =~ ^[1-8]$ ]] || {
-  echo 'ERROR: shared GPU job requires AMD_CI_GPU_COUNT in 1..8' >&2
+[[ ${AMD_CI_GPU_COUNT:-} =~ ^[1-9][0-9]*$ ]] || {
+  echo 'ERROR: shared GPU job requires a positive integer AMD_CI_GPU_COUNT' >&2
   exit 2
 }
 owner=$PPID

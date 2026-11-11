@@ -3,6 +3,11 @@
 Single-host functional jobs can share GPUs. Existing paired RDMA and performance
 lanes stay exclusive. Nothing installs or enables this path automatically.
 
+Admission knows GPU count, inventory, owner and container client; it does not
+inspect test names or repository test paths. Callers select compatible workloads
+and declare a positive count. Inventory sets the capacity limit. The initial
+Router xGMI and SMG chat consumers are rollout choices, not allocator restrictions.
+
 ```text
 Buildkite bootstrap -> pre-command -> lease -> Docker plugin
 Actions service     -> lease -> Listener --once -> container hook
