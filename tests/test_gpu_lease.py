@@ -10,10 +10,18 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch, call
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "shared"))
-from gpu_lease import Pool, fits_router_window, load_grant, lock, start_time
+from gpu_lease import (
+    Pool,
+    cleanup_resources,
+    fits_router_window,
+    load_grant,
+    lock,
+    start_time,
+)
 from container_policy import buildkite_env, github_input
 
 
@@ -304,6 +312,48 @@ class LeaseTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("quarantined", result.stderr)
         self.assertEqual(len(list(self.pool.state.glob("*.claim"))), 1)
+
+    def test_cleanup_scopes_networks_to_the_lease(self):
+        lease = self.acquire(1)
+        with (
+            patch(
+                "gpu_lease.subprocess.check_output",
+                side_effect=["owned-container\n", "owned-network\n"],
+            ) as query,
+            patch("gpu_lease.subprocess.run") as remove,
+        ):
+            cleanup_resources(lease)
+        label = ("amd-ci-lease-" + lease.token).encode().hex()
+        self.assertEqual(
+            query.call_args_list,
+            [
+                call(
+                    [
+                        "docker",
+                        "ps",
+                        "-aq",
+                        "--filter",
+                        "label=amd-ci-lease=" + lease.token,
+                    ],
+                    text=True,
+                    timeout=30,
+                ),
+                call(
+                    ["docker", "network", "ls", "-q", "--filter", "label=" + label],
+                    text=True,
+                    timeout=30,
+                ),
+            ],
+        )
+        self.assertEqual(
+            remove.call_args_list,
+            [
+                call(["docker", "rm", "-f", "owned-container"], check=True, timeout=60),
+                call(
+                    ["docker", "network", "rm", "owned-network"], check=True, timeout=30
+                ),
+            ],
+        )
 
     def test_owner_exit_requires_completion_receipt(self):
         docker = self.root / "docker"

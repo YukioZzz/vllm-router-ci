@@ -202,7 +202,7 @@ def load_grant(path):
     return grant
 
 
-def cleanup_containers(lease):
+def cleanup_resources(lease):
     # Never prune by host, repository, shared runner name, or all containers.
     ids = subprocess.check_output(
         ["docker", "ps", "-aq", "--filter", f"label={lease.grant['docker_label']}"],
@@ -211,6 +211,20 @@ def cleanup_containers(lease):
     ).split()
     if ids:
         subprocess.run(["docker", "rm", "-f", *ids], check=True, timeout=60)
+    # The pinned Actions Docker hook encodes RUNNER_NAME as a hex label. Our
+    # adapter gives it a lease-specific identity before any network is created,
+    # so even interruption during prepare_job has an unambiguous cleanup scope.
+    if lease.grant["docker_label"] == f"amd-ci-lease={lease.token}":
+        network_label = ("amd-ci-lease-" + lease.token).encode().hex()
+        networks = subprocess.check_output(
+            ["docker", "network", "ls", "-q", "--filter", f"label={network_label}"],
+            text=True,
+            timeout=30,
+        ).split()
+        if networks:
+            subprocess.run(
+                ["docker", "network", "rm", *networks], check=True, timeout=30
+            )
 
 
 def fits_router_window(now, seconds):
@@ -329,7 +343,7 @@ def supervise(
                         os.kill(owner[0], signal.SIGKILL)
                 except ProcessLookupError:
                     pass
-            cleanup_containers(lease)
+            cleanup_resources(lease)
             deadline = time.monotonic() + pool.config["drain_seconds"]
             while time.monotonic() < deadline:
                 if all(pool.idle(gpu) for gpu in lease.gpus):

@@ -82,8 +82,10 @@ Set `AMD_CI_DOCKER_HOOK` to the built, operator-owned Docker hook from
 commit `d4731a43a2fe1a4d4f7ea24dc515a1a120a065c8`. Build hooklib then docker using
 their lockfiles. The adapter translates the runner's `jobContainer` field to
 the delegate's `container` field and supplies options from the grant. The
-delegate retains container/network creation, execution and cleanup. Its prune
-label derives from `RUNNER_NAME`; concurrent listeners must have unique names.
+delegate retains container/network creation, execution and cleanup. The adapter
+gives it a lease-specific internal `RUNNER_NAME` for Docker labels, leaving the
+real runner registration unchanged. The supervisor uses that same label to
+remove owned networks if cancellation interrupts the hook's normal cleanup.
 
 Jobs supply an image and `AMD_CI_GPU_COUNT`, without Docker options, ports or
 user mounts. Inventory supplies `/models`. Docker actions and service containers

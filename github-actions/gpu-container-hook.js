@@ -16,7 +16,11 @@ if (policy.status !== 0) {
   process.stderr.write('Shared GPU container policy rejected the job\n');
   process.exit(1);
 }
+// The delegate labels networks by RUNNER_NAME. Scope that internal identity to
+// this lease, including when the real registration is reused for another job.
+const lease = JSON.parse(readFileSync(process.env.AMD_CI_GPU_LEASE, 'utf8'));
 const result = spawnSync(process.execPath, [delegate], {
   input: policy.stdout, stdio: ['pipe', 'inherit', 'inherit'],
+  env: { ...process.env, RUNNER_NAME: `amd-ci-lease-${lease.id}` },
 });
 process.exit(result.status === null ? 1 : result.status);
